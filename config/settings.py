@@ -2,7 +2,7 @@
 DATE_FORMAT = '%Y-%m-%d'
 
 # chart 
-TITLE = "Super Cool Project"
+TITLE = "Mejoras 2024"
 TITLE_SIZE = 12
 TITLE_FONT_WEIGHT = "bold"
 
@@ -18,10 +18,10 @@ MONTH_FONT_WEIGHT = "bold"
 
 BAR_COLOR = "#30C7DC"
 TEAM_BAR_COLORS = {
-    "Technology": "#56778f",
-    "Business": "#91be6f",
-    "Finance": "#ff6e61",
-    "Marketing": "#f9c54e"
+    "Responsable 1": "#56778f",
+    "Responsable 2": "#91be6f",
+    "Responsable 3": "#ff6e61",
+    "Responsable 4": "#f3a712"
 }  
 
 FONT_FAMILY = "sans-serif"

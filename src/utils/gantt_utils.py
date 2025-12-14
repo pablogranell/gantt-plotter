@@ -6,7 +6,6 @@ import matplotlib.patches as mpatches
 import mplcursors
 
 from matplotlib import rcParams
-from matplotlib.widgets import CheckButtons
 from config.settings import (
     TITLE, TITLE_SIZE, TITLE_FONT_WEIGHT,
     FONT_FAMILY, FONT_SANS_SERIF, FONT_COLOR,
@@ -16,7 +15,6 @@ from config.settings import (
     DATE_FORMAT
 )
 
-# style confs
 rcParams['font.family'] = FONT_FAMILY
 rcParams['font.sans-serif'] = FONT_SANS_SERIF
 rcParams['axes.titlesize'] = TITLE_SIZE
@@ -35,7 +33,7 @@ def load_tasks(file_path, sheet_name, header, nrows, skiprows):
             skiprows=skiprows)
         
         tasks.columns = [
-            'task_id', 'team', 'dependencies', 'task_group', 'task_description',
+            'task_group', 'task_description', 'team', 'duration',
             'start_date', 'end_date'
         ]
 
@@ -83,21 +81,21 @@ def plot_gantt(tasks, output_path=None):
 
     for _, task in tasks.iterrows():
         duration = (task['end_date'] - task['start_date']).days
+        label = task.get('task_description', task['task_group'])
         bar = ax.barh(
-                task['task_group'],
+                label,
                 width=duration,
                 height=0.6,
                 left=task['start_date'],
                 color=TEAM_BAR_COLORS.get(task['team'], BAR_COLOR)
         )
         
-        # creating the annotations for each bar
         for rect in bar:
             rect.annotation = (
                 f"{task.start_date.strftime('%d/%b/%y')} - {task.end_date.strftime('%d/%b/%y')}\n"
-                f"Duration: {duration}\n"
-                f"Task group: {task.task_group}\n"
-                f"Team: {task.team}"
+                f"Duración: {duration} días\n"
+                f"Fase: {task.task_group}\n"
+                f"Responsable: {task.team}"
             )
             bars.append(rect)
         
