@@ -1,9 +1,7 @@
 import pandas as pd
-
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
-import mplcursors
 
 from matplotlib import rcParams
 from config.settings import (
@@ -19,6 +17,7 @@ rcParams['font.family'] = FONT_FAMILY
 rcParams['font.sans-serif'] = FONT_SANS_SERIF
 rcParams['axes.titlesize'] = TITLE_SIZE
 rcParams['axes.labelsize'] = LABEL_SIZE
+rcParams['toolbar'] = 'None'  # Quita la barra de herramientas
 
 def load_tasks(file_path, sheet_name, header, nrows, skiprows):
     """
@@ -33,13 +32,13 @@ def load_tasks(file_path, sheet_name, header, nrows, skiprows):
             skiprows=skiprows)
         
         tasks.columns = [
-            'task_group', 'task_description', 'team', 'duration',
-            'start_date', 'end_date'
+            'Fase', 'Tareas', 'Responsable', 'Duración',
+            'Fecha Inicio', 'Fecha Fin'
         ]
 
-        tasks['start_date'] = pd.to_datetime(tasks['start_date'], format=DATE_FORMAT)
-        tasks['end_date'] = pd.to_datetime(tasks['end_date'], format=DATE_FORMAT)
-        tasks.set_index(pd.DatetimeIndex(tasks['start_date'].values), inplace=True)
+        tasks['Fecha Inicio'] = pd.to_datetime(tasks['Fecha Inicio'], format=DATE_FORMAT)
+        tasks['Fecha Fin'] = pd.to_datetime(tasks['Fecha Fin'], format=DATE_FORMAT)
+        tasks.set_index(pd.DatetimeIndex(tasks['Fecha Inicio'].values), inplace=True)
         
         return tasks
     
@@ -51,10 +50,10 @@ def group_tasks_by_group(tasks):
     """
     Groups the tasks dataframe by team and task_group.
     """
-    grouped = tasks.groupby(by=['team', 'task_group']).agg({
-        'start_date': 'min',
-        'end_date': 'max'
-    }).reset_index().sort_values(by=['start_date', 'task_group'], ascending=False)
+    grouped = tasks.groupby(by=['Responsable', 'Fase']).agg({
+        'Fecha Inicio': 'min',
+        'Fecha Fin': 'max'
+    }).reset_index().sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
     return grouped
 
 def build_week_ticks(start_date, end_date):
@@ -73,39 +72,69 @@ def plot_gantt(tasks, output_path=None):
         return
     
     fig, ax = plt.subplots(figsize=(12, 6))
-    start_date = tasks['start_date'].min()
-    end_date = tasks['end_date'].max()
+    start_date = tasks['Fecha Inicio'].min()
+    end_date = tasks['Fecha Fin'].max()
 
-    tasks = tasks.sort_values(by=['start_date', 'task_group'], ascending=False)
+    tasks = tasks.sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
     bars = []
 
     for _, task in tasks.iterrows():
-        duration = (task['end_date'] - task['start_date']).days
-        label = task.get('task_description', task['task_group'])
+        duration = (task['Fecha Fin'] - task['Fecha Inicio']).days
+        label = task.get('Tareas', task['Fase'])
         bar = ax.barh(
                 label,
                 width=duration,
                 height=0.6,
-                left=task['start_date'],
-                color=TEAM_BAR_COLORS.get(task['team'], BAR_COLOR)
+                left=task['Fecha Inicio'],
+                color=TEAM_BAR_COLORS.get(task['Responsable'], BAR_COLOR)
         )
         
         for rect in bar:
-            rect.annotation = (
-                f"{task.start_date.strftime('%d/%b/%y')} - {task.end_date.strftime('%d/%b/%y')}\n"
+            rect.annotation_text = (
+                f"{task['Fecha Inicio'].strftime('%d/%b/%y')} - {task['Fecha Fin'].strftime('%d/%b/%y')}\n"
                 f"Duración: {duration} días\n"
-                f"Fase: {task.task_group}\n"
-                f"Responsable: {task.team}"
+                f"Fase: {task['Fase']}\n"
+                f"Responsable: {task['Responsable']}"
             )
             bars.append(rect)
+    
+    annot = ax.annotate(
+        "",
+        xy=(0, 0),
+        xytext=(10, 10),
+        textcoords="offset points",
+        bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.9, edgecolor="gray"),
+        fontsize=10,
+        visible=False,
+        zorder=100
+    )
+
+    def on_hover(event):
+        """Maneja el evento de hover sobre las barras"""
+        if event.inaxes != ax:
+            annot.set_visible(False)
+            fig.canvas.draw_idle()
+            return
         
-    # annotations when hovering bars
-    cursor = mplcursors.cursor(bars, hover=mplcursors.HoverMode.Transient)
-    @cursor.connect("add")
-    def on_hover(sel):
-        sel.annotation.set_text(sel.artist.annotation)
-        sel.annotation.get_bbox_patch().set(facecolor="white", alpha=0.8)
-        sel.annotation.set_fontsize(10)
+        found = False
+        for rect in bars:
+            if rect.contains(event)[0]:
+                # Obtener posición de la barra
+                x = rect.get_x() + rect.get_width() / 2
+                y = rect.get_y() + rect.get_height() / 2
+                
+                annot.xy = (x, y)
+                annot.set_text(rect.annotation_text)
+                annot.set_visible(True)
+                found = True
+                break
+        
+        if not found:
+            annot.set_visible(False)
+        
+        fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect('motion_notify_event', on_hover)
 
     week_positions, week_labels = build_week_ticks(start_date, end_date)
 
