@@ -1,5 +1,5 @@
 # data 
-DATE_FORMAT = '%Y-%m-%d'
+DATE_FORMAT = '%d-%m-%Y'
 
 # chart 
 TITLE = "Mejoras 2024"
@@ -20,8 +20,7 @@ BAR_COLOR = "#30C7DC"
 TEAM_BAR_COLORS = {
     "Responsable 1": "#56778f",
     "Responsable 2": "#91be6f",
-    "Responsable 3": "#ff6e61",
-    "Responsable 4": "#f3a712"
+    "Responsable 3": "#ff6e61"
 }  
 
 FONT_FAMILY = "sans-serif"
