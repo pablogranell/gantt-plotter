@@ -159,30 +159,42 @@ def _create_legend(ax):
 def _create_floating_buttons(fig):
     global hover_enabled
     buttons = []
+    button_axes = []
     
     # Botón Guardar
     ax_save = fig.add_axes([0.01, 0.94, 0.07, 0.05])
     btn_save = Button(ax_save, 'Guardar', color='white', hovercolor='lightgray')
     btn_save.label.set_fontsize(14)
+    button_axes.append(ax_save)
+    initial_color = 'palegreen' if hover_enabled else 'white'
+    ax_hover = fig.add_axes([0.085, 0.94, 0.12, 0.05])
+    btn_hover = Button(ax_hover, 'Menú flotante', color=initial_color)
+    btn_hover.label.set_fontsize(14)
+    button_axes.append(ax_hover)
     
     def save_click(event):
-        filepath = 'gantt_export.png'
-        extent = fig.get_axes()[0].get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
-        fig.savefig(filepath, dpi=300, bbox_inches=extent.expanded(1.2, 1.3))
+        filepath = 'gantt.png'
+        for ax_btn in button_axes:
+            ax_btn.set_visible(False)
+        fig.canvas.draw()
+        
+        fig.savefig(filepath, dpi=300, bbox_inches='tight')
         print(f"Guardado en {filepath}")
+        
+        # Volver a mostrar botones
+        for ax_btn in button_axes:
+            ax_btn.set_visible(True)
+        fig.canvas.draw_idle()
     
     btn_save.on_clicked(save_click)
     buttons.append(btn_save)
     
-    # Botón Hover
-    ax_hover = fig.add_axes([0.085, 0.94, 0.07, 0.05])
-    btn_hover = Button(ax_hover, 'Hover', color='lightblue')
-    btn_hover.label.set_fontsize(14)
-    
     def hover_click(event):
         global hover_enabled
         hover_enabled = not hover_enabled
-        ax_hover.set_facecolor('palegreen' if hover_enabled else 'white')
+        new_color = 'palegreen' if hover_enabled else 'white'
+        ax_hover.set_facecolor(new_color)
+        btn_hover.color = new_color
         fig.canvas.draw_idle()
     
     btn_hover.on_clicked(hover_click)
