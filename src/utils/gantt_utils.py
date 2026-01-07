@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
+from matplotlib.widgets import Button
 
 from matplotlib import rcParams
 from config.settings import (
@@ -21,6 +22,8 @@ rcParams['toolbar'] = 'None'
 
 # Columnas esperadas del Excel
 COLUMN_NAMES = ['Fase', 'Tareas', 'Responsable', 'Duración', 'Fecha Inicio', 'Fecha Fin']
+
+hover_enabled = True
 
 
 def load_tasks(file_path, sheet_name, header, nrows, skiprows):
@@ -91,12 +94,16 @@ def _format_bar_annotation(task, duration):
 def _setup_hover_handler(fig, ax, bars, annot):    
     def on_hover(event):
         """Maneja el evento de hover sobre las barras"""
+        if not hover_enabled:
+            annot.set_visible(False)
+            fig.canvas.draw_idle()
+            return
+            
         if event.inaxes != ax:
             annot.set_visible(False)
             fig.canvas.draw_idle()
             return
         
-        found = False
         for rect in bars:
             if rect.contains(event)[0]:
                 # Obtener posición de la barra
@@ -149,12 +156,48 @@ def _create_legend(ax):
     ax.legend(handles=handles, loc='best', framealpha=0.8)
 
 
+def _create_floating_buttons(fig):
+    global hover_enabled
+    buttons = []
+    
+    # Botón Guardar
+    ax_save = fig.add_axes([0.01, 0.94, 0.07, 0.05])
+    btn_save = Button(ax_save, 'Guardar', color='white', hovercolor='lightgray')
+    btn_save.label.set_fontsize(14)
+    
+    def save_click(event):
+        filepath = 'gantt_export.png'
+        extent = fig.get_axes()[0].get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted())
+        fig.savefig(filepath, dpi=300, bbox_inches=extent.expanded(1.2, 1.3))
+        print(f"Guardado en {filepath}")
+    
+    btn_save.on_clicked(save_click)
+    buttons.append(btn_save)
+    
+    # Botón Hover
+    ax_hover = fig.add_axes([0.085, 0.94, 0.07, 0.05])
+    btn_hover = Button(ax_hover, 'Hover', color='lightblue')
+    btn_hover.label.set_fontsize(14)
+    
+    def hover_click(event):
+        global hover_enabled
+        hover_enabled = not hover_enabled
+        ax_hover.set_facecolor('palegreen' if hover_enabled else 'white')
+        fig.canvas.draw_idle()
+    
+    btn_hover.on_clicked(hover_click)
+    buttons.append(btn_hover)
+    
+    return buttons
+
+
 def plot_gantt(tasks, output_path=None):
     if tasks.empty:
         print("No hay tareas para dibujar.")
         return
 
     fig, ax = plt.subplots(figsize=(12, 6))
+    ax.format_coord = lambda x, y: ''
     
     start_date = tasks['Fecha Inicio'].min()
     end_date = tasks['Fecha Fin'].max()
@@ -180,6 +223,10 @@ def plot_gantt(tasks, output_path=None):
     
     _configure_axes(ax, sec_ax, week_positions, week_labels)
     _create_legend(ax)
+    
+    if not output_path:
+        buttons = _create_floating_buttons(fig)
+        fig._buttons = buttons
 
     plt.tight_layout()
 
