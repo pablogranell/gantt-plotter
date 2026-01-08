@@ -63,7 +63,7 @@ class ExcelConfigGUI:
         self.column_combos = {}
         
         required_columns = ["Fecha Inicio", "Fecha Fin"]
-        optional_columns = ["Fase", "Tareas", "Responsable"]
+        optional_columns = ["Fase", "Tareas", "Responsable", "Duración"]
         
         ttk.Label(columns_frame, text="Obligatorias:", font=("", 9, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
@@ -126,7 +126,7 @@ class ExcelConfigGUI:
             for idx, row in df.iterrows():
                 non_empty = row.dropna()
                 if len(non_empty) >= 2:
-                    self.header_var.set(str(idx))
+                    self.header_var.set(str(idx+1))
                     self._load_columns()
                     return
         except Exception:
@@ -139,7 +139,7 @@ class ExcelConfigGUI:
         if not self.file_path or not self.sheet_var.get():
             return
         try:
-            header_row = int(self.header_var.get())
+            header_row = int(self.header_var.get()) - 1
             df = pd.read_excel(
                 self.file_path, 
                 sheet_name=self.sheet_var.get(), 
@@ -153,7 +153,8 @@ class ExcelConfigGUI:
                 "Fecha Fin": ["fin", "end", "fecha fin", "termino"],
                 "Fase": ["fase", "phase", "etapa", "grupo"],
                 "Tareas": ["tarea", "task", "actividad", "descripcion"],
-                "Responsable": ["responsable", "owner", "asignado", "recurso"]
+                "Responsable": ["responsable", "owner", "asignado", "recurso"],
+                "Duración": ["duracion", "duración", "duration", "dias", "días", "days"]
             }
             
             for col_name, combo in self.column_combos.items():
@@ -204,7 +205,7 @@ class ExcelConfigGUI:
         config = {
             "file_path": self.file_path,
             "sheet_name": self.sheet_var.get(),
-            "header": int(self.header_var.get()),
+            "header": int(self.header_var.get()) - 1,
             "column_mapping": column_mapping
         }
         if self.on_load:
