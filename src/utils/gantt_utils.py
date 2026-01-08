@@ -21,12 +21,12 @@ rcParams['axes.labelsize'] = LABEL_SIZE
 rcParams['toolbar'] = 'None'
 
 # Columnas esperadas del Excel
-COLUMN_NAMES = ['Fase', 'Tareas', 'Responsable', 'Duración', 'Fecha Inicio', 'Fecha Fin']
+COLUMN_NAMES = ['Fase', 'Tareas', 'Responsable', 'Fecha Inicio', 'Fecha Fin']
 
 hover_enabled = True
 
 
-def load_tasks(file_path, sheet_name, header, nrows, skiprows):
+def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_mapping=None):
     """
     Loads data from an Excel spreadsheet into a Pandas dataframe.
     """
@@ -39,9 +39,31 @@ def load_tasks(file_path, sheet_name, header, nrows, skiprows):
             skiprows=skiprows
         )
 
-        tasks.columns = COLUMN_NAMES
-        tasks['Fecha Inicio'] = pd.to_datetime(tasks['Fecha Inicio'], format=DATE_FORMAT)
-        tasks['Fecha Fin'] = pd.to_datetime(tasks['Fecha Fin'], format=DATE_FORMAT)
+        if column_mapping:
+            reverse_mapping = {v: k for k, v in column_mapping.items()}
+            tasks = tasks.rename(columns=reverse_mapping)
+            
+            for col in COLUMN_NAMES:
+                if col not in tasks.columns:
+                    if col == 'Fase':
+                        tasks[col] = 'Tarea'
+                    elif col == 'Tareas':
+                        tasks[col] = ''
+                    elif col == 'Responsable':
+                        tasks[col] = 'Sin asignar'
+                    else:
+                        tasks[col] = ''
+        else:
+            tasks.columns = COLUMN_NAMES
+        
+        tasks['Fecha Inicio'] = pd.to_datetime(tasks['Fecha Inicio'], format=DATE_FORMAT, errors='coerce')
+        tasks['Fecha Fin'] = pd.to_datetime(tasks['Fecha Fin'], format=DATE_FORMAT, errors='coerce')
+        
+        tasks = tasks.dropna(subset=['Fecha Inicio', 'Fecha Fin'])
+        
+        if tasks.empty:
+            raise ValueError("No hay filas con fechas validas")
+        
         tasks.set_index(pd.DatetimeIndex(tasks['Fecha Inicio'].values), inplace=True)
         
         return tasks
@@ -54,7 +76,7 @@ def group_tasks_by_group(tasks):
     grouped = tasks.groupby(by=['Responsable', 'Fase']).agg({
         'Fecha Inicio': 'min',
         'Fecha Fin': 'max',
-        'Tareas': lambda x: '\n'.join(str(t)[:50] for t in x.dropna())
+        'Tareas': lambda x: '\n'.join(str(t)[:50] for t in x.dropna() if str(t).strip())
     }).reset_index().sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
     return grouped
 
@@ -83,14 +105,17 @@ def _create_annotation(ax):
 
 
 def _format_bar_annotation(task, duration):
-    return (
-        f"{task['Fecha Inicio'].strftime('%d/%b/%y')} - "
-        f"{task['Fecha Fin'].strftime('%d/%b/%y')}\n"
-        f"{duration} días\n"
-        f"{task['Fase']}\n"
-        f"{task['Responsable']}\n"
-        f"{task['Tareas']}"
-    )
+    lines = [
+        f"{task['Fecha Inicio'].strftime('%d/%b/%y')} - {task['Fecha Fin'].strftime('%d/%b/%y')}",
+        f"{duration} dias"
+    ]
+    if task.get('Fase') and str(task['Fase']).strip():
+        lines.append(str(task['Fase']))
+    if task.get('Responsable') and str(task['Responsable']).strip():
+        lines.append(str(task['Responsable']))
+    if task.get('Tareas') and str(task['Tareas']).strip():
+        lines.append(str(task['Tareas']))
+    return '\n'.join(lines)
 
 
 def _setup_hover_handler(fig, ax, bars, annot):    
