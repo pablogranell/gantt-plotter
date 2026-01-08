@@ -5,3 +5,4 @@ include/
 share/
 __pycache__/
 ~$*.xlsx
+gantt/
