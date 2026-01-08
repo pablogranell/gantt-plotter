@@ -53,7 +53,8 @@ def load_tasks(file_path, sheet_name, header, nrows, skiprows):
 def group_tasks_by_group(tasks):
     grouped = tasks.groupby(by=['Responsable', 'Fase']).agg({
         'Fecha Inicio': 'min',
-        'Fecha Fin': 'max'
+        'Fecha Fin': 'max',
+        'Tareas': lambda x: '\n'.join(str(t)[:50] for t in x.dropna())
     }).reset_index().sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
     return grouped
 
@@ -87,7 +88,8 @@ def _format_bar_annotation(task, duration):
         f"{task['Fecha Fin'].strftime('%d/%b/%y')}\n"
         f"{duration} días\n"
         f"{task['Fase']}\n"
-        f"{task['Responsable']}"
+        f"{task['Responsable']}\n"
+        f"{task['Tareas']}"
     )
 
 
@@ -218,7 +220,7 @@ def plot_gantt(tasks, output_path=None):
     bars = []
     for _, task in tasks.iterrows():
         duration = (task['Fecha Fin'] - task['Fecha Inicio']).days
-        label = task.get('Tareas', task['Fase'])
+        label = task['Fase']
         color = TEAM_BAR_COLORS.get(task['Responsable'], BAR_COLOR)
 
         bar = ax.barh(label, width=duration, height=0.6, left=task['Fecha Inicio'], color=color)
