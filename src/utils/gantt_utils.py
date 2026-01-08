@@ -46,11 +46,11 @@ def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_
             for col in COLUMN_NAMES:
                 if col not in tasks.columns:
                     if col == 'Fase':
-                        tasks[col] = 'Tarea'
+                            tasks[col] = [f'Tarea {i+1}' for i in range(len(tasks))]
                     elif col == 'Tareas':
                         tasks[col] = ''
                     elif col == 'Responsable':
-                        tasks[col] = 'Sin asignar'
+                        tasks[col] = 'Sin responsable asignado'
                     else:
                         tasks[col] = ''
         else:
@@ -149,9 +149,9 @@ def _setup_hover_handler(fig, ax, bars, annot):
     fig.canvas.mpl_connect('motion_notify_event', on_hover)
 
 
-def _configure_axes(ax, sec_ax, week_positions, week_labels):
+def _configure_axes(ax, sec_ax, week_positions, week_labels, display_title):
     # Título y etiquetas
-    ax.set_title(TITLE, fontsize=TITLE_SIZE, color=FONT_COLOR).set_fontweight(TITLE_FONT_WEIGHT)
+    ax.set_title(display_title, fontsize=TITLE_SIZE, color=FONT_COLOR).set_fontweight(TITLE_FONT_WEIGHT)
     ax.set_xlabel(X_LABEL, fontsize=LABEL_SIZE, color=FONT_COLOR)
     ax.set_ylabel(Y_LABEL, fontsize=LABEL_SIZE, color=FONT_COLOR)
     # Eje X primario (semanas)
@@ -183,7 +183,7 @@ def _create_legend(ax):
     ax.legend(handles=handles, loc='best', framealpha=0.8)
 
 
-def _create_floating_buttons(fig):
+def _create_floating_buttons(fig, display_title):
     global hover_enabled
     buttons = []
     button_axes = []
@@ -200,13 +200,12 @@ def _create_floating_buttons(fig):
     button_axes.append(ax_hover)
     
     def save_click(event):
-        filepath = 'gantt.png'
+        filepath = f"{display_title}.png"
         for ax_btn in button_axes:
             ax_btn.set_visible(False)
         fig.canvas.draw()
         
         fig.savefig(filepath, dpi=300, bbox_inches='tight')
-        print(f"Guardado en {filepath}")
         
         # Volver a mostrar botones
         for ax_btn in button_axes:
@@ -230,13 +229,15 @@ def _create_floating_buttons(fig):
     return buttons
 
 
-def plot_gantt(tasks, output_path=None):
+def plot_gantt(tasks, output_path=None, sheet_name=None):
     if tasks.empty:
         print("No hay tareas para dibujar.")
         return
 
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.format_coord = lambda x, y: ''
+    display_title = f"{TITLE} ({sheet_name})" if sheet_name else TITLE
+    fig.canvas.manager.set_window_title(display_title)
     
     start_date = tasks['Fecha Inicio'].min()
     end_date = tasks['Fecha Fin'].max()
@@ -260,11 +261,11 @@ def plot_gantt(tasks, output_path=None):
     week_positions, week_labels = build_week_ticks(start_date, end_date)
     sec_ax = ax.secondary_xaxis('bottom')
     
-    _configure_axes(ax, sec_ax, week_positions, week_labels)
+    _configure_axes(ax, sec_ax, week_positions, week_labels, display_title)
     _create_legend(ax)
     
     if not output_path:
-        buttons = _create_floating_buttons(fig)
+        buttons = _create_floating_buttons(fig,display_title)
         fig._buttons = buttons
 
     plt.tight_layout()
@@ -273,4 +274,4 @@ def plot_gantt(tasks, output_path=None):
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
     else:
-        plt.show()
+        plt.show(block=False)

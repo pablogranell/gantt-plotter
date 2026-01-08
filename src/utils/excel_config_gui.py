@@ -4,15 +4,15 @@ import pandas as pd
 
 
 class ExcelConfigGUI:
-    def __init__(self):
-        self.result = None
+    def __init__(self, on_load=None):
+        self.on_load = on_load
         self.file_path = None
         self.sheets = []
         self.columns = []
         
         self.root = tk.Tk()
         self.root.title("Configuracion de Gantt")
-        self.root.geometry("375x475")
+        self.root.geometry("375x425")
         self.root.resizable(True, True)
         
         self._create_widgets()
@@ -30,30 +30,30 @@ class ExcelConfigGUI:
         
         ttk.Button(file_frame, text="Seleccionar", command=self._select_file).pack(side=tk.RIGHT)
         
-        # Hoja
-        sheet_frame = ttk.LabelFrame(main_frame, text="Hoja", padding="5")
+        # Ajustes de hoja (Hoja + Cabecera juntos)
+        sheet_frame = ttk.LabelFrame(main_frame, text="Ajustes de hoja", padding="5")
         sheet_frame.pack(fill=tk.X, pady=5)
         
+        # Contenedor izquierdo: Hoja
+        left_container = ttk.Frame(sheet_frame)
+        left_container.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        ttk.Label(left_container, text="Hoja:").pack(side=tk.LEFT)
         self.sheet_var = tk.StringVar()
-        self.sheet_combo = ttk.Combobox(sheet_frame, textvariable=self.sheet_var, state="readonly")
-        self.sheet_combo.pack(fill=tk.X)
+        self.sheet_combo = ttk.Combobox(left_container, textvariable=self.sheet_var, state="readonly", width=20)
+        self.sheet_combo.pack(side=tk.LEFT, padx=5)
         self.sheet_combo.bind("<<ComboboxSelected>>", self._on_sheet_change)
         
-        # Cabecera
-        header_frame = ttk.LabelFrame(main_frame, text="Cabecera", padding="5")
-        header_frame.pack(fill=tk.X, pady=5)
+        # Contenedor derecho: Fila cabecera
+        right_container = ttk.Frame(sheet_frame)
+        right_container.pack(side=tk.RIGHT)
         
-        header_inner = ttk.Frame(header_frame)
-        header_inner.pack(fill=tk.X)
-        
-        ttk.Label(header_inner, text="Fila:").pack(side=tk.LEFT)
+        ttk.Label(right_container, text="Fila cabecera:").pack(side=tk.LEFT)
         self.header_var = tk.StringVar(value="0")
-        self.header_spin = ttk.Spinbox(header_inner, from_=0, to=100, textvariable=self.header_var, width=5)
+        self.header_spin = ttk.Spinbox(right_container, from_=0, to=100, textvariable=self.header_var, width=5)
         self.header_spin.pack(side=tk.LEFT, padx=5)
         self.header_spin.bind("<ButtonRelease-1>", self._on_header_change)
         self.header_spin.bind("<KeyRelease>", self._on_header_change)
-        
-        ttk.Button(header_inner, text="Autodetectar", command=self._autodetect_header).pack(side=tk.LEFT, padx=5)
         
         # Mapeo de columnas
         columns_frame = ttk.LabelFrame(main_frame, text="Columnas", padding="5")
@@ -201,23 +201,21 @@ class ExcelConfigGUI:
             if val and val != "(ninguno)":
                 column_mapping[col_name] = val
         
-        self.result = {
+        config = {
             "file_path": self.file_path,
             "sheet_name": self.sheet_var.get(),
             "header": int(self.header_var.get()),
             "column_mapping": column_mapping
         }
-        self.root.destroy()
+        if self.on_load:
+            self.on_load(config)
     
     def _cancel(self):
-        self.result = None
         self.root.destroy()
     
     def show(self):
         self.root.mainloop()
-        return self.result
 
-
-def show_excel_config():
-    gui = ExcelConfigGUI()
-    return gui.show()
+def show_excel_config(on_load=None):
+    gui = ExcelConfigGUI(on_load=on_load)
+    gui.show()
