@@ -6,6 +6,8 @@ import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
 import matplotlib.cm as cm
+from PIL import Image
+import win32clipboard
 
 from matplotlib import rcParams
 from config.settings import (
@@ -240,23 +242,16 @@ def _create_floating_buttons(fig, display_title, file_path):
     # Botón Copiar
     @with_hidden_buttons
     def copy_click(event):
-        from PIL import Image
-        import win32clipboard
-        
         buf = io.BytesIO()
         fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
         buf.seek(0)
-        
-        image = Image.open(buf)
         output = io.BytesIO()
-        image.convert('RGB').save(output, 'BMP')
-        data = output.getvalue()[14:]
-        output.close()
-        
+        Image.open(buf).convert('RGB').save(output, 'BMP')
         win32clipboard.OpenClipboard()
-        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, output.getvalue()[14:])
         win32clipboard.CloseClipboard()
-    
+            
     create_button([0.085, 0.94, 0.06, 0.05], 'Copiar').on_clicked(copy_click)
     
     # Botón Menú flotante
