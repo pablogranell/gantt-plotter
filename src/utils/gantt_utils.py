@@ -22,7 +22,7 @@ rcParams['axes.labelsize'] = LABEL_SIZE
 rcParams['toolbar'] = 'None'
 
 # Columnas esperadas del Excel
-COLUMN_NAMES = ['Fase', 'Tareas', 'Responsable', 'Fecha Inicio', 'Fecha Fin']
+COLUMN_NAMES = ['Tareas', 'Responsable', 'Fecha Inicio', 'Fecha Fin']
 
 hover_enabled = True
 
@@ -73,10 +73,8 @@ def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_
             
             for col in COLUMN_NAMES:
                 if col not in tasks.columns:
-                    if col == 'Fase':
-                            tasks[col] = [f'Tarea {i+1}' for i in range(len(tasks))]
-                    elif col == 'Tareas':
-                        tasks[col] = ''
+                    if col == 'Tareas':
+                        tasks[col] = [f'Tarea {i+1}' for i in range(len(tasks))]
                     elif col == 'Responsable':
                         tasks[col] = 'Sin responsable asignado'
                     else:
@@ -88,10 +86,6 @@ def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_
         tasks['Fecha Fin'] = pd.to_datetime(tasks['Fecha Fin'], format=DATE_FORMAT, errors='coerce')
         
         tasks = tasks.dropna(subset=['Fecha Inicio', 'Fecha Fin'])
-        
-        if tasks.empty:
-            raise ValueError("No hay filas con fechas validas")
-        
         tasks.set_index(pd.DatetimeIndex(tasks['Fecha Inicio'].values), inplace=True)
         
         return tasks
@@ -101,11 +95,10 @@ def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_
         raise
 
 def group_tasks_by_group(tasks):
-    grouped = tasks.groupby(by=['Responsable', 'Fase']).agg({
+    grouped = tasks.groupby(by=['Responsable', 'Tareas']).agg({
         'Fecha Inicio': 'min',
-        'Fecha Fin': 'max',
-        'Tareas': lambda x: '\n'.join(str(t)[:50] for t in x.dropna() if str(t).strip())
-    }).reset_index().sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
+        'Fecha Fin': 'max'
+    }).reset_index().sort_values(by=['Fecha Inicio', 'Tareas'], ascending=False)
     return grouped
 
 def build_week_ticks(start_date, end_date):
@@ -131,18 +124,15 @@ def _create_annotation(ax):
         zorder=100
     )
 
-
 def _format_bar_annotation(task, duration):
     lines = [
         f"{task['Fecha Inicio'].strftime('%d/%b/%y')} - {task['Fecha Fin'].strftime('%d/%b/%y')}",
         f"{duration} dias"
     ]
-    if task.get('Fase') and str(task['Fase']).strip():
-        lines.append(str(task['Fase']))
-    if task.get('Responsable') and str(task['Responsable']).strip():
-        lines.append(str(task['Responsable']))
     if task.get('Tareas') and str(task['Tareas']).strip():
         lines.append(str(task['Tareas']))
+    if task.get('Responsable') and str(task['Responsable']).strip():
+        lines.append("Responsable: " + str(task['Responsable']))
     return '\n'.join(lines)
 
 
@@ -257,11 +247,13 @@ def _create_floating_buttons(fig, display_title):
     return buttons
 
 
-def plot_gantt(tasks,TITLE=None, sheet_name=None, output_path=None):
-    if tasks.empty:
-        print("No hay tareas para dibujar.")
-        return
+def _truncate_label(text, max_chars=50):
+    text = str(text).strip()
+    if len(text) > max_chars:
+        return text[:max_chars-3] + "..."
+    return text
 
+def plot_gantt(tasks, TITLE=None, sheet_name=None, output_path=None):
     responsable_colors = build_responsable_colors(tasks)
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.format_coord = lambda x, y: ''
@@ -270,12 +262,12 @@ def plot_gantt(tasks,TITLE=None, sheet_name=None, output_path=None):
     
     start_date = tasks['Fecha Inicio'].min()
     end_date = tasks['Fecha Fin'].max()
-    tasks = tasks.sort_values(by=['Fecha Inicio', 'Fase'], ascending=False)
+    tasks = tasks.sort_values(by=['Fecha Inicio', 'Tareas'], ascending=False)
 
     bars = []
     for _, task in tasks.iterrows():
         duration = (task['Fecha Fin'] - task['Fecha Inicio']).days
-        label = task['Fase']
+        label = _truncate_label(task['Tareas'])
         color = responsable_colors.get(task['Responsable'], BAR_COLOR)
 
         bar = ax.barh(label, width=duration, height=0.6, left=task['Fecha Inicio'], color=color)
@@ -294,7 +286,7 @@ def plot_gantt(tasks,TITLE=None, sheet_name=None, output_path=None):
     _create_legend(ax, responsable_colors)
     
     if not output_path:
-        buttons = _create_floating_buttons(fig,display_title)
+        buttons = _create_floating_buttons(fig, display_title)
         fig._buttons = buttons
 
     plt.tight_layout()

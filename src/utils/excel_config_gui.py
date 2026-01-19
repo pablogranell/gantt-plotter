@@ -12,7 +12,7 @@ class ExcelConfigGUI:
         
         self.root = tk.Tk()
         self.root.title("Configuracion de Gantt")
-        self.root.geometry("375x425")
+        self.root.geometry("375x400")
         self.root.resizable(True, True)
         
         self._create_widgets()
@@ -63,7 +63,7 @@ class ExcelConfigGUI:
         self.column_combos = {}
         
         required_columns = ["Fecha Inicio", "Fecha Fin"]
-        optional_columns = ["Fase", "Tareas", "Responsable", "Duración"]
+        optional_columns = ["Tareas", "Responsable", "Duración"]
         
         ttk.Label(columns_frame, text="Obligatorias:", font=("", 9, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
@@ -151,8 +151,7 @@ class ExcelConfigGUI:
             keywords = {
                 "Fecha Inicio": ["inicio", "start", "fecha inicio"],
                 "Fecha Fin": ["fin", "end", "fecha fin", "termino"],
-                "Fase": ["fase", "phase", "etapa", "grupo"],
-                "Tareas": ["tarea", "task", "actividad", "descripcion"],
+                "Tareas": ["tarea", "task", "actividad", "descripcion", "fase", "phase", "etapa"],
                 "Responsable": ["responsable", "owner", "asignado", "recurso"],
                 "Duración": ["duracion", "duración", "duration", "dias", "días", "days"]
             }
