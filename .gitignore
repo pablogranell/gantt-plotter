@@ -7,3 +7,5 @@ __pycache__/
 ~$*.xlsx
 gantt/
 build/
+main.spec
+output.md

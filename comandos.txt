@@ -1,3 +1,4 @@
+gantt/Scripts/activate
 pyinstaller --noconfirm --onefile --windowed  "C:\Users\Pablo\Documents\Proyectos\gantt-plotter\main.py"
 
 

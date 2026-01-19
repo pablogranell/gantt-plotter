@@ -1,3 +1,5 @@
+import os
+import io
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -201,37 +203,66 @@ def _create_legend(ax, responsable_colors):
     ax.legend(handles=handles, loc='best', framealpha=0.8)
 
 
-def _create_floating_buttons(fig, display_title):
+def _create_floating_buttons(fig, display_title, file_path):
     global hover_enabled
-    buttons = []
     button_axes = []
+    buttons = []
+    
+    def with_hidden_buttons(func):
+        def wrapper(*args, **kwargs):
+            for ax in button_axes:
+                ax.set_visible(False)
+            fig.canvas.draw()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                for ax in button_axes:
+                    ax.set_visible(True)
+                fig.canvas.draw_idle()
+        return wrapper
+    
+    def create_button(pos, text, color='white', hovercolor='lightgray'):
+        ax = fig.add_axes(pos)
+        btn = Button(ax, text, color=color, hovercolor=hovercolor)
+        btn.label.set_fontsize(14)
+        button_axes.append(ax)
+        buttons.append(btn)
+        return btn
     
     # Botón Guardar
-    ax_save = fig.add_axes([0.01, 0.94, 0.07, 0.05])
-    btn_save = Button(ax_save, 'Guardar', color='white', hovercolor='lightgray')
-    btn_save.label.set_fontsize(14)
-    button_axes.append(ax_save)
-    initial_color = 'palegreen' if hover_enabled else 'white'
-    ax_hover = fig.add_axes([0.085, 0.94, 0.12, 0.05])
-    btn_hover = Button(ax_hover, 'Menú flotante', color=initial_color)
-    btn_hover.label.set_fontsize(14)
-    button_axes.append(ax_hover)
-    
+    @with_hidden_buttons
     def save_click(event):
-        filepath = f"{display_title}.png"
-        for ax_btn in button_axes:
-            ax_btn.set_visible(False)
-        fig.canvas.draw()
-        
+        filepath = os.path.join(os.path.dirname(file_path), f"{display_title}.png")
         fig.savefig(filepath, dpi=300, bbox_inches='tight')
-        
-        # Volver a mostrar botones
-        for ax_btn in button_axes:
-            ax_btn.set_visible(True)
-        fig.canvas.draw_idle()
     
-    btn_save.on_clicked(save_click)
-    buttons.append(btn_save)
+    create_button([0.01, 0.94, 0.07, 0.05], 'Guardar').on_clicked(save_click)
+    
+    # Botón Copiar
+    @with_hidden_buttons
+    def copy_click(event):
+        from PIL import Image
+        import win32clipboard
+        
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+        buf.seek(0)
+        
+        image = Image.open(buf)
+        output = io.BytesIO()
+        image.convert('RGB').save(output, 'BMP')
+        data = output.getvalue()[14:]
+        output.close()
+        
+        win32clipboard.OpenClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        win32clipboard.CloseClipboard()
+    
+    create_button([0.085, 0.94, 0.06, 0.05], 'Copiar').on_clicked(copy_click)
+    
+    # Botón Menú flotante
+    initial_color = 'palegreen' if hover_enabled else 'white'
+    btn_hover = create_button([0.15, 0.94, 0.12, 0.05], 'Menú flotante', color=initial_color)
+    ax_hover = button_axes[-1]
     
     def hover_click(event):
         global hover_enabled
@@ -242,10 +273,8 @@ def _create_floating_buttons(fig, display_title):
         fig.canvas.draw_idle()
     
     btn_hover.on_clicked(hover_click)
-    buttons.append(btn_hover)
     
     return buttons
-
 
 def _truncate_label(text, max_chars=50):
     text = str(text).strip()
@@ -253,7 +282,7 @@ def _truncate_label(text, max_chars=50):
         return text[:max_chars-3] + "..."
     return text
 
-def plot_gantt(tasks, TITLE=None, sheet_name=None, output_path=None):
+def plot_gantt(tasks, TITLE=None, sheet_name=None, output_path=None, file_path=None):
     responsable_colors = build_responsable_colors(tasks)
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.format_coord = lambda x, y: ''
@@ -286,7 +315,7 @@ def plot_gantt(tasks, TITLE=None, sheet_name=None, output_path=None):
     _create_legend(ax, responsable_colors)
     
     if not output_path:
-        buttons = _create_floating_buttons(fig, display_title)
+        buttons = _create_floating_buttons(fig, display_title, file_path)
         fig._buttons = buttons
 
     plt.tight_layout()
