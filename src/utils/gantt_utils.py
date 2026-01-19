@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
-import colorsys
 import matplotlib.cm as cm
 
 from matplotlib import rcParams
