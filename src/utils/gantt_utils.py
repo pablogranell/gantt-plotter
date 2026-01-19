@@ -3,14 +3,16 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.patches as mpatches
 from matplotlib.widgets import Button
+import colorsys
+import matplotlib.cm as cm
 
 from matplotlib import rcParams
 from config.settings import (
-    TITLE, TITLE_SIZE, TITLE_FONT_WEIGHT,
+    TITLE_SIZE, TITLE_FONT_WEIGHT,
     FONT_FAMILY, FONT_SANS_SERIF, FONT_COLOR,
     LABEL_SIZE, DAY_FONT_SIZE, MONTH_FONT_SIZE, MONTH_FONT_WEIGHT,
     X_LABEL, Y_LABEL, 
-    BAR_COLOR, TEAM_BAR_COLORS,
+    BAR_COLOR,
     DATE_FORMAT
 )
 
@@ -24,6 +26,33 @@ rcParams['toolbar'] = 'None'
 COLUMN_NAMES = ['Fase', 'Tareas', 'Responsable', 'Fecha Inicio', 'Fecha Fin']
 
 hover_enabled = True
+
+def generate_color_palette(n_colors): 
+    if n_colors <= 10:
+        cmap = cm.get_cmap('tab10')
+    elif n_colors <= 12:
+        cmap = cm.get_cmap('Set3')
+    else:
+        cmap = cm.get_cmap('hsv')
+    
+    colors = []
+    for i in range(n_colors):
+        rgba = cmap(i / max(n_colors - 1, 1) if n_colors > 1 else 0)
+        colors.append('#{:02x}{:02x}{:02x}'.format(
+            int(rgba[0]*255), int(rgba[1]*255), int(rgba[2]*255)
+        ))
+    return colors
+
+def build_responsable_colors(tasks):
+    def normalize(name):
+        if pd.isna(name) or not str(name).strip():
+            return "Sin responsable asignado"
+        return str(name).strip().title()
+    
+    tasks['Responsable'] = tasks['Responsable'].apply(normalize)
+    unique_resp = tasks['Responsable'].unique().tolist()
+    colors = generate_color_palette(len(unique_resp))
+    return {resp: colors[i] for i, resp in enumerate(unique_resp)}
 
 
 def load_tasks(file_path, sheet_name, header, nrows=None, skiprows=None, column_mapping=None):
@@ -175,10 +204,10 @@ def _configure_axes(ax, sec_ax, week_positions, week_labels, display_title):
         sec_ax.spines[spine].set_visible(False)
 
 
-def _create_legend(ax):
+def _create_legend(ax, responsable_colors):
     handles = [
         mpatches.Patch(color=color, label=team)
-        for team, color in TEAM_BAR_COLORS.items()
+        for team, color in responsable_colors.items()
     ]
     ax.legend(handles=handles, loc='best', framealpha=0.8)
 
@@ -229,11 +258,12 @@ def _create_floating_buttons(fig, display_title):
     return buttons
 
 
-def plot_gantt(tasks, output_path=None, sheet_name=None):
+def plot_gantt(tasks,TITLE=None, sheet_name=None, output_path=None):
     if tasks.empty:
         print("No hay tareas para dibujar.")
         return
 
+    responsable_colors = build_responsable_colors(tasks)
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.format_coord = lambda x, y: ''
     display_title = f"{TITLE} ({sheet_name})" if sheet_name else TITLE
@@ -247,7 +277,7 @@ def plot_gantt(tasks, output_path=None, sheet_name=None):
     for _, task in tasks.iterrows():
         duration = (task['Fecha Fin'] - task['Fecha Inicio']).days
         label = task['Fase']
-        color = TEAM_BAR_COLORS.get(task['Responsable'], BAR_COLOR)
+        color = responsable_colors.get(task['Responsable'], BAR_COLOR)
 
         bar = ax.barh(label, width=duration, height=0.6, left=task['Fecha Inicio'], color=color)
 
@@ -262,7 +292,7 @@ def plot_gantt(tasks, output_path=None, sheet_name=None):
     sec_ax = ax.secondary_xaxis('bottom')
     
     _configure_axes(ax, sec_ax, week_positions, week_labels, display_title)
-    _create_legend(ax)
+    _create_legend(ax, responsable_colors)
     
     if not output_path:
         buttons = _create_floating_buttons(fig,display_title)

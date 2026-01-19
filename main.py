@@ -10,7 +10,8 @@ def generate_gantt(config):
     )
     
     grouped_tasks = group_tasks_by_group(tasks)
-    plot_gantt(grouped_tasks, sheet_name=config["sheet_name"], output_path=None)
+    TITLE= config["file_path"].split("/")[-1].rsplit(".", 1)[0]
+    plot_gantt(grouped_tasks, TITLE=TITLE, sheet_name=config["sheet_name"], output_path=None)
 
 def main():
     show_excel_config(on_load=generate_gantt)
