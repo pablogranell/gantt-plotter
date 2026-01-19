@@ -1,0 +1,4 @@
+pyinstaller --noconfirm --onefile --windowed  "C:\Users\Pablo\Documents\Proyectos\gantt-plotter\main.py"
+
+
+git2md . -o output.md --ignore output.md *.xlsx __pycache__ dist gantt .gitignore .DS_Store comandos.txt *.spec *.png output/
